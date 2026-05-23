@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /*?*
+Sitemap: https://anti-ai-qwen-academy-qwen-fact-chec.vercel.app/sitemap.xml
