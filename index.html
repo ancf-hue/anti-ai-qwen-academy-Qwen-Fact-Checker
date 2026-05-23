@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: file:;">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Anti-AI | Qwen Fact-Checker</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      --bg: #0a0c14; --surface: rgba(20,24,36,0.9); --glass: rgba(255,255,255,0.06);
+      --text: #e6eaf0; --muted: #8a92a6;
+      --accent: #00d4ff; --accent-glow: rgba(0,212,255,0.4);
+      --success: #2ecc71; --warning: #f39c12; --danger: #e74c3c; --gold: #ffd700;
+      --font: system-ui, -apple-system, "Segoe UI", monospace;
+      --radius: 14px; --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; display: flex; justify-content: center; padding: 16px; }
+    
+    button, .btn, .tab-btn { user-select: none; -webkit-tap-highlight-color: transparent; }
+    .code-block, .lesson-content, .cert-id, .lib-item p, .job-card, .lesson-input, .case-text, .source-link { user-select: text; cursor: text; }
+    
+    #app { width: 100%; max-width: 860px; background: var(--surface); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0,0,0,0.6); padding: 20px; display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; }
+    #app::before { content: ''; position: absolute; top: -30%; left: -20%; width: 140%; height: 140%; background: radial-gradient(circle at 20% 20%, rgba(0,212,255,0.08), transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,215,0,0.08), transparent 50%); pointer-events: none; z-index: 0; }
+
+    .hero-section { text-align: center; padding: 10px 0 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .hero-image { max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 32px rgba(255,215,0,0.2); margin: 12px 0; border: 1px solid rgba(255,255,255,0.1); }
+    .image-placeholder { 
+      width: 100%; height: 150px; background: rgba(255,215,0,0.1); 
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; color: var(--gold); border: 2px dashed var(--gold);
+    }
+    .hero-fallback { padding: 30px; background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(0,212,255,0.08)); border-radius: 12px; margin: 12px 0; color: var(--muted); border: 2px dashed var(--gold); }
+    .money-badge { display: inline-block; padding: 6px 16px; background: linear-gradient(135deg, var(--gold), #ffed4e); color: #000; border-radius: 20px; font-weight: bold; margin: 8px 4px; font-size: 0.85rem; }
+    .update-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); margin-top: 8px; }
+    .update-indicator.live::before { content: ''; width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .concept-card { background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); transition: var(--transition); }
+    .concept-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(255,215,0,0.25); border-color: var(--gold); }
+    .concept-card img { width: 100%; height: 150px; object-fit: cover; display: block; }
+    .concept-caption { padding: 10px; font-size: 0.8rem; color: var(--muted); text-align: center; font-weight: 600; }
+
+    header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+    h1 { font-size: 1.3rem; background: linear-gradient(90deg, var(--gold), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 10px; }
+    h1 img { width: 24px; height: 24px; filter: drop-shadow(0 0 8px rgba(255,215,0,0.6)); animation: float 4s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+    .hdr-actions { display: flex; gap: 8px; }
+    
+    #langBtn, #guideBtn, #voiceBtn { 
+      background: var(--glass); 
+      border: 1px solid rgba(255,255,255,0.2); 
+      padding: 6px 10px; 
+      border-radius: 8px; 
+      color: var(--text); 
+      cursor: pointer; 
+      font-weight: bold; 
+      transition: var(--transition); 
+      font-size: 0.8rem;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #langBtn:hover, #guideBtn:hover, #voiceBtn:hover { 
+      border-color: var(--gold); 
+      box-shadow: 0 0 15px rgba(255,215,0,0.4); 
+    }
+    #voiceBtn.active { 
+      background: rgba(255,215,0,0.2); 
+      border-color: var(--gold); 
+      color: var(--gold); 
+      box-shadow: 0 0 10px rgba(255,215,0,0.3); 
+    }
+
+    .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; position: relative; z-index: 2; }
+    .tab-btn { 
+      flex: 1; 
+      padding: 10px; 
+      background: var(--glass); 
+      border: 1px solid rgba(255,255,255,0.1); 
+      border-radius: 10px; 
+      color: var(--muted); 
+      font-weight: 600; 
+      cursor: pointer; 
+      transition: var(--transition); 
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .tab-btn.active { 
+      background: rgba(255,215,0,0.15); 
+      border-color: var(--gold); 
+      color: var(--gold); 
+      box-shadow: 0 0 20px rgba(255,215,0,0.2); 
+    }
+
+    .tab-content { display: none; flex-direction: column; gap: 12px; position: relative; z-index: 2; animation: fadeIn 0.3s ease; max-height: 55vh; overflow-y: auto; padding-right: 4px; }
+    .tab-content.active { display: flex; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .tab-content::-webkit-scrollbar { width: 6px; }
+    .tab-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+    .card { background: rgba(0,0,0,0.35); padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); transition: var(--transition); }
+    .card:hover { border-color: rgba(255,215,0,0.3); }
+    .card h3 { color: var(--gold); margin-bottom: 6px; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+    .card p, .card li { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+    .card ul, .card ol { padding-left: 18px; margin-top: 4px; }
+    .card li { margin-bottom: 4px; }
+    .card-img { width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid rgba(255,255,255,0.08); }
+
+    /* 🔗 Стили для ссылок-источников */
+    .source-link { 
+      display: inline-flex; align-items: center; gap: 4px;
+      color: var(--accent); text-decoration: none; font-size: 0.75rem;
+      background: rgba(0,212,255,0.1); padding: 2px 8px; border-radius: 4px;
+      transition: var(--transition); margin-left: 6px;
+    }
+    .source-link:hover { background: rgba(0,212,255,0.2); text-decoration: underline; }
+    .source-tag { 
+      display: inline-block; padding: 2px 6px; background: rgba(255,215,0,0.15);
+      border-radius: 4px; font-size: 0.7rem; color: var(--gold); margin: 2px 0;
+    }
+
+    .salary-tag { display: inline-block; padding: 3px 10px; background: rgba(46,204,113,0.2); border: 1px solid var(--success); border-radius: 12px; font-size: 0.75rem; color: var(--success); margin: 2px; }
+    .remote-tag { display: inline-block; padding: 3px 10px; background: rgba(0,212,255,0.2); border: 1px solid var(--accent); border-radius: 12px; font-size: 0.75rem; color: var(--accent); margin: 2px; }
+
+    .lesson-card { background: rgba(255,255,255,0.03); padding: 14px; border-radius: 10px; margin: 8px 0; border-left: 3px solid var(--muted); transition: var(--transition); }
+    .lesson-card.locked { opacity: 0.4; pointer-events: none; filter: grayscale(0.8); }
+    .lesson-card.active { border-left-color: var(--gold); }
+    .lesson-card.completed { border-left-color: var(--success); opacity: 0.7; }
+    .lesson-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .lesson-title { font-weight: bold; color: var(--gold); font-size: 0.95rem; }
+    .lesson-status { padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; }
+    .lesson-status.locked { background: rgba(255,255,255,0.1); color: var(--muted); }
+    .lesson-status.active { background: rgba(255,215,0,0.2); color: var(--gold); }
+    .lesson-status.completed { background: rgba(46,204,113,0.2); color: var(--success); }
+    .lesson-content { font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; }
+    .case-text { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 6px; font-size: 0.85rem; margin: 8px 0; border-left: 3px solid var(--accent); white-space: pre-wrap; }
+    .lesson-task { background: rgba(255,215,0,0.05); padding: 10px; border-radius: 8px; margin: 8px 0; font-size: 0.8rem; border: 1px solid rgba(255,215,0,0.2); }
+    .lesson-input { width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: var(--text); margin: 8px 0; font-family: var(--font); min-height: 80px; resize: vertical; }
+    .lesson-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,215,0,0.2); }
+    .lesson-feedback { margin-top: 8px; padding: 10px; border-radius: 6px; font-size: 0.82rem; display: none; }
+    .lesson-feedback.success { background: rgba(46,204,113,0.1); border: 1px solid var(--success); color: var(--success); }
+    .lesson-feedback.error { background: rgba(231,76,60,0.1); border: 1px solid var(--danger); color: #ff8a8a; }
+
+    .exam-question { margin: 16px 0; padding: 14px; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+    .exam-question.answered { border-color: var(--gold); }
+    .exam-options label { display: block; margin: 6px 0; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; cursor: pointer; transition: var(--transition); }
+    .exam-options label:hover { background: rgba(255,255,255,0.08); }
+    .exam-options input[type="radio"] { margin-right: 8px; accent-color: var(--gold); }
+
+    /* 📊 Стили для таблиц профессии */
+    .profession-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin: 8px 0; }
+    .profession-table th { 
+      background: rgba(255,215,0,0.1); color: var(--gold); 
+      padding: 10px; text-align: left; border-bottom: 2px solid rgba(255,215,0,0.3);
+    }
+    .profession-table td { 
+      padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); 
+      vertical-align: top;
+    }
+    .profession-table tr:hover { background: rgba(255,255,255,0.03); }
+    .task-name { font-weight: 600; color: var(--text); }
+    .task-desc { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+
+    .warning-box { 
+      background: rgba(243,156,18,0.1); border-left: 4px solid var(--warning);
+      padding: 12px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.8rem;
+    }
+    .warning-box strong { color: var(--warning); }
+
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+    .skill-card { 
+      background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px;
+      border-left: 3px solid var(--accent);
+    }
+    .skill-card h4 { color: var(--gold); margin-bottom: 8px; font-size: 0.9rem; }
+    .skill-card ul { padding-left: 18px; }
+    .skill-card li { margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
+
+    .industry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 12px 0; }
+    .industry-card {
+      background: rgba(0,212,255,0.08); padding: 10px; border-radius: 8px;
+      border: 1px solid rgba(0,212,255,0.2);
+    }
+    .industry-card h4 { color: var(--accent); margin-bottom: 6px; font-size: 0.85rem; }
+    .industry-card p { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+
+    .certificate { background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(0,212,255,0.15)); border: 3px solid var(--gold); border-radius: 16px; padding: 30px; text-align: center; margin: 12px 0; position: relative; overflow: hidden; box-shadow: 0 0 40px rgba(255,215,0,0.3); }
+    .certificate::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,215,0,0.03) 10px, rgba(255,215,0,0.03) 20px); animation: shimmer 3s linear infinite; }
+    @keyframes shimmer { 0%{transform:translate(-50%,-50%)} 100%{transform:translate(0,0)} }
+    .certificate-content { position: relative; z-index: 1; }
+    .certificate h3 { color: var(--gold); margin-bottom: 12px; font-size: 1.5rem; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+    .certificate p { font-size: 0.9rem; color: var(--text); margin: 6px 0; }
+    .cert-badge { display: inline-block; padding: 6px 16px; background: linear-gradient(135deg, var(--gold), #ffed4e); color: #000; border-radius: 25px; font-weight: bold; margin: 12px 0; box-shadow: 0 4px 15px rgba(255,215,0,0.4); }
+    .cert-id { font-family: monospace; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; color: var(--gold); display: inline-block; margin: 8px 0; }
+    .cert-seal { width: 80px; height: 80px; border: 3px solid var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 16px auto; background: rgba(255,215,0,0.1); font-size: 2rem; box-shadow: 0 0 20px rgba(255,215,0,0.4); }
+    .cert-validator { margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; text-align: left; }
+    .cert-validator input { width: 100%; padding: 8px; margin: 8px 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: var(--text); font-family: monospace; }
+
+    .lib-item { padding: 12px; margin: 8px 0; background: rgba(255,255,255,0.03); border-radius: 8px; border-left: 3px solid var(--accent); }
+    .lib-item h4 { color: var(--gold); margin: 0 0 6px 0; font-size: 0.9rem; }
+    .lib-item p { font-size: 0.82rem; color: var(--muted); margin: 0 0 8px 0; line-height: 1.4; }
+    .lib-section { transition: opacity 0.3s ease; }
+    #libSearch:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,0.2); }
+
+    input, textarea, select { width: 100%; padding: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; transition: var(--transition); }
+    input:focus, textarea:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,215,0,0.2); }
+
+    .btn { 
+      padding: 10px 14px; 
+      background: linear-gradient(135deg, var(--gold), #ffed4e); 
+      color: #000; 
+      border: none; 
+      border-radius: 8px; 
+      font-weight: 700; 
+      cursor: pointer; 
+      transition: var(--transition); 
+      box-shadow: 0 4px 15px rgba(255,215,0,0.3); 
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center; 
+      gap: 6px;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,215,0,0.5); }
+    .btn.secondary { 
+      background: var(--glass); 
+      color: var(--text); 
+      border: 1px solid rgba(255,255,255,0.2); 
+      box-shadow: none;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .btn.danger { background: linear-gradient(135deg, var(--danger), #c0392b); color: #fff; }
+    .btn-group { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+    .skill-item { margin: 10px 0; }
+    .skill-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
+    .skill-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+    .skill-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--accent)); width: 0%; transition: width 0.8s ease; }
+
+    .checklist-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: flex-start; }
+    .checklist-item input { margin-top: 4px; accent-color: var(--gold); width: 18px; height: 18px; }
+    .checklist-item label { cursor: pointer; flex: 1; transition: var(--transition); }
+    .checklist-item.completed label { text-decoration: line-through; color: var(--muted); opacity: 0.7; }
+
+    .support { text-align: center; padding: 14px; background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(0,212,255,0.1)); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: auto; position: relative; z-index: 2; }
+    .support h3 { color: var(--gold); margin-bottom: 8px; }
+    .support p { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    .phone-box { background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px; display: inline-block; margin: 4px 0; }
+    .catalog-link { color: var(--accent); text-decoration: none; font-weight: bold; display: block; margin-top: 4px; }
+    footer { text-align: center; color: var(--muted); font-size: 0.7rem; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px; position: relative; z-index: 2; }
+
+    .modal { position: fixed; inset: 0; background: rgba(2,2,8,0.92); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+    .modal.open { display: flex; }
+    .modal-content { background: var(--surface); padding: 24px; border-radius: 16px; border: 1px solid rgba(255,215,0,0.3); max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
+    .modal-close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; }
+    .modal-image { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+
+    @media(max-width:480px) {
+      #app { padding: 14px; }
+      h1 { font-size: 1.1rem; }
+      .tab-btn { padding: 8px; font-size: 0.75rem; }
+      .card { padding: 10px; }
+      .btn { padding: 8px 10px; font-size: 0.8rem; }
+      .concept-grid { grid-template-columns: 1fr; }
+      .certificate { padding: 20px; }
+      .profession-table { font-size: 0.75rem; }
+      .profession-table th, .profession-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<main id="app">
+  <div class="hero-section">
+    <h1><img src="favicon.ico" alt="🤖" onerror="this.style.display='none'"> <span data-i18n="title">Qwen Fact-Checker</span></h1>
+    <div class="image-placeholder" style="display:none;">🤖</div>
+    
+    <img src="assets/images/hero-factchecker.png" alt="Qwen Fact-Checker" class="hero-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+    <div class="hero-fallback" style="display:none;">
+      <p style="font-size:3rem; margin-bottom:8px;">🤖🛡️</p>
+      <p style="color:var(--gold); font-weight:bold; font-size:1.1rem;" data-i18n="hero_title">Anti-AI Academy: Qwen Верификатор</p>
+      <p style="font-size:0.8rem; margin-top:8px;" data-i18n="hero_subtitle">🎓 10 дней практики • 💼 $400-1500/мес • 🔐 100% офлайн</p>
+    </div>
+
+    <div style="margin:12px 0;">
+      <span class="money-badge" data-i18n="badge1">🛡️ Верификация</span>
+      <span class="money-badge" data-i18n="badge2">📊 Фактчекинг</span>
+      <span class="money-badge" data-i18n="badge3">🌍 Удалённо</span>
+    </div>
+
+    <div class="update-indicator live" id="updateIndicator">
+      <span>🔄</span>
+      <span id="lastUpdate" data-i18n="demo_mode">Демо-режим</span>
+    </div>
+
+    <div class="hdr-actions" style="justify-content:center; margin-top:12px;">
+      <button id="guideBtn" onclick="app.openModal('guideModal')" data-i18n="guide_btn">📖 План 10 дней</button>
+      <button id="voiceBtn" onclick="app.toggleVoice()" title="Озвучка" data-i18n-title="voice_title">🔇</button>
+      <button id="langBtn" onclick="app.toggleLang()">🌐 EN</button>
+    </div>
+  </div>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <img src="assets/images/hallucinations.png" alt="Hallucinations" onerror="this.parentElement.innerHTML='<div class=\'image-placeholder\'>🤖</div><div class=\'concept-caption\' data-i18n=\'concept1\'>Галлюцинации</div>'">
+      <div class="concept-caption" data-i18n="concept1">🤖 Галлюцинации</div>
+    </div>
+    <div class="concept-card">
+      <img src="assets/images/cross-check.png" alt="Cross-Check" onerror="this.parentElement.innerHTML='<div class=\'image-placeholder\'>🔍</div><div class=\'concept-caption\' data-i18n=\'concept2\'>Проверка</div>'">
+      <div class="concept-caption" data-i18n="concept2">🔍 Фактчекинг</div>
+    </div>
+    <div class="concept-card">
+      <img src="assets/images/deepfake-scan.png" alt="Deepfake" onerror="this.parentElement.innerHTML='<div class=\'image-placeholder\'>🎭</div><div class=\'concept-caption\' data-i18n=\'concept3\'>Дипфейки</div>'">
+      <div class="concept-caption" data-i18n="concept3">🎭 Дипфейки</div>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="course" data-i18n="tab_course">🎓 Обучение</button>
+    <button class="tab-btn" data-tab="practice" data-i18n="tab_practice">🛡️ Практика</button>
+    <button class="tab-btn" data-tab="library" data-i18n="tab_library">📚 Библиотека</button>
+    <button class="tab-btn" data-tab="progress" data-i18n="tab_progress">📅 Прогресс</button>
+  </nav>
+
+  <!-- 🎓 COURSE -->
+  <section id="course" class="tab-content active">
+    <div class="card" style="border: 2px solid var(--gold); background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(0,212,255,0.1));">
+      <h3 style="color: var(--gold); text-align: center;" data-i18n="cert_conditions">🏆 УСЛОВИЯ СЕРТИФИКАТА</h3>
+      <div style="display: flex; justify-content: center; gap: 16px; margin: 12px 0; flex-wrap: wrap;">
+        <div style="text-align: center;"><div style="font-size: 2rem;">📚</div><b data-i18n="cond1">10/10 уроков</b><br><span style="font-size: 0.8rem; color: var(--muted);" data-i18n="cond1_sub">Пройти все задания</span></div>
+        <div style="text-align: center;"><div style="font-size: 2rem;">🧠</div><b data-i18n="cond2">10/10 на экзамене</b><br><span style="font-size: 0.8rem; color: var(--muted);" data-i18n="cond2_sub">Без ошибок</span></div>
+        <div style="text-align: center;"><div style="font-size: 2rem;">📁</div><b data-i18n="cond3">Портфолио</b><br><span style="font-size: 0.8rem; color: var(--muted);" data-i18n="cond3_sub">5 проверенных кейсов</span></div>
+      </div>
+      <p style="text-align: center; font-size: 0.85rem; color: var(--muted);" data-i18n="cert_warning">⚠️ Только идеальный результат даёт доступ к трудоустройству.</p>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="progress_title">📊 Прогресс</h3>
+      <div class="skill-item">
+        <div class="skill-label"><span data-i18n="lessons_done">Уроков пройдено</span><span id="courseProgress">0/10</span></div>
+        <div class="skill-bar"><div class="skill-fill" id="courseBar" style="width:0%"></div></div>
+      </div>
+      <div style="margin-top:12px; text-align:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+        <button class="btn danger" onclick="app.resetProgress()" style="font-size:0.8rem; width:100%;" data-i18n="reset_btn">🔄 Сбросить прогресс</button>
+        <p style="font-size:0.7rem; color:var(--muted); margin-top:6px;" data-i18n="reset_warning">⚠️ Все достижения будут удалены</p>
+      </div>
+    </div>
+
+    <div id="lessonsContainer"></div>
+    <div id="examContainer"></div>
+
+    <!-- CERTIFICATE -->
+    <div class="certificate" id="certificateBox" style="display:none;">
+      <div class="certificate-content">
+        <div class="cert-seal">🤖</div>
+        <h3 data-i18n="cert_heading">🎓 СЕРТИФИКАТ</h3>
+        <p style="font-size:1rem; margin:8px 0; color:var(--accent);">
+          <b data-i18n="cert_course">Курс: <span id="certCourseDisplay">Qwen AI Fact-Checker</span></b>
+        </p>
+        <p data-i18n="cert_confirms">Настоящим подтверждается, что</p>
+        <p style="font-size:1.2rem; color:var(--gold); margin:8px 0; font-weight:bold;" data-i18n="cert_who">Сертифицированный AI Fact-Checker</p>
+        <p data-i18n="cert_completed">успешно завершил курс верификации ИИ-контента с результатом <b style="color:var(--success);">10/10</b></p>
+        <div class="cert-id" id="certIdDisplay">QWEN-XXXXXX</div>
+        <p style="font-size:0.8rem; color:var(--muted); margin-top:8px;">
+          <span data-i18n="cert_issuer">Издатель:</span> <span id="certIssuerDisplay">Anti-AI Academy × Qwen</span>
+        </p>
+        <p style="font-size:0.8rem; color:var(--muted); margin-top:4px;" data-i18n="cert_date_label">Дата выдачи: <span id="certDateDisplay"></span></p>
+        <div style="margin:12px 0;">
+          <button class="btn secondary" onclick="app.exportCertificate()" style="font-size:0.8rem; margin-right:8px;" data-i18n="cert_download">💾 Скачать</button>
+          <label class="btn secondary" style="font-size:0.8rem; cursor:pointer;" data-i18n="cert_import">📤 Загрузить
+            <input type="file" id="certImport" accept=".json" onchange="app.importCertificate(event)" style="display:none;">
+          </label>
+          <button class="btn secondary" onclick="app.exportPortfolio()" style="font-size:0.8rem; margin-left:8px;" data-i18n="cert_portfolio">📁 Портфолио</button>
+        </div>
+        <div class="cert-badge" data-i18n="cert_badge">Qwen Fact-Checker</div>
+        <div class="btn-group" style="justify-content:center; margin-top:16px; flex-wrap:wrap;">
+          <button class="btn" onclick="app.printCertificate()" data-i18n="cert_print">🖨️ Печать / PDF</button>
+          <button class="btn secondary" onclick="app.switchTab('practice')" data-i18n="cert_practice">🛡️ Практика</button>
+        </div>
+        <div class="cert-validator">
+          <h4 style="color:var(--gold); margin:0 0 8px 0;" data-i18n="cert_validate_title">🔍 Проверка сертификата</h4>
+          <input type="text" id="validateInput" placeholder="QWEN-XXXXXX" pattern="QWEN-[A-Z0-9]{6}">
+          <button class="btn secondary" onclick="app.validateCertificate()" style="width:100%; font-size:0.8rem;" data-i18n="cert_validate_btn">✅ Проверить</button>
+          <div id="validateResult" style="margin-top:8px; font-size:0.8rem; display:none;"></div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:12px;" data-i18n="cert_security">🔒 Хранится локально • Подпись: SHA-256 (демо)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🛡️ PRACTICE -->
+  <section id="practice" class="tab-content">
+    <div class="card" style="text-align:center; border-color:var(--accent);">
+      <h3 data-i18n="practice_title">🛡️ Интерактивная практика</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-top:8px;" data-i18n="practice_subtitle">Тренажёр верификации: находите ошибки, фейки и риски</p>
+    </div>
+    <div id="practiceContainer"></div>
+  </section>
+
+  <!-- 📚 LIBRARY - ОБНОВЛЁННЫЙ С ПРОФЕССИЕЙ -->
+  <section id="library" class="tab-content">
+    <div class="card" style="text-align:center; border-color:var(--accent);">
+      <h3 data-i18n="library_title">📚 Библиотека Верификатора</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-top:8px;" data-i18n="library_subtitle">Чек-листы, SOP, инструменты и гайды</p>
+    </div>
+    
+    <!-- 🔍 НОВАЯ СЕКЦИЯ: ПРОФЕССИЯ -->
+    <div class="card lib-section" data-tags="profession ai-verifier qwen">
+      <h3 style="color:var(--gold);" data-i18n="profession_title">🔍 Профессия: AI-верификатор</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:12px;" data-i18n="profession_desc">
+        Новая и быстрорастущая профессия на стыке технологий, аналитики и контент-менеджмента. 
+        Специалист проверяет, оценивает и улучшает контент, созданный или обработанный искусственным интеллектом.
+      </p>
+      
+      <h4 style="color:var(--accent); margin:12px 0 8px;" data-i18n="tasks_title">📋 Что делает AI-верификатор?</h4>
+      <table class="profession-table">
+        <thead>
+          <tr>
+            <th data-i18n="task_col">Задача</th>
+            <th data-i18n="desc_col">Описание</th>
+            <th data-i18n="source_col">Источник</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="task-name" data-i18n="task1">Оценка ответов ИИ</span><div class="task-desc" data-i18n="task1_desc">Сравнение вариантов по критериям: точность, полезность, естественность</div></td>
+            <td data-i18n="task1_detail">Соответствие гайдлайнам бренда и платформы</td>
+            <td><a href="https://remotecategory.com" target="_blank" class="source-link" data-i18n="src_remotecategory">remotecategory.com ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="task-name" data-i18n="task2">Фактчекинг</span><div class="task-desc" data-i18n="task2_desc">Проверка фактической точности утверждений</div></td>
+            <td data-i18n="task2_detail">Выявление «галлюцинаций» и вымышленных фактов</td>
+            <td><a href="https://claritybot.io" target="_blank" class="source-link" data-i18n="src_claritybot">claritybot.io ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="task-name" data-i18n="task3">Проверка источников</span><div class="task-desc" data-i18n="task3_desc">Верификация цитат и ссылок</div></td>
+            <td data-i18n="task3_detail">Существуют ли они, доступны ли, подтверждают ли заявленное</td>
+            <td><a href="https://claritybot.io" target="_blank" class="source-link">claritybot.io ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="task-name" data-i18n="task4">Логическая согласованность</span><div class="task-desc" data-i18n="task4_desc">Анализ аргументации</div></td>
+            <td data-i18n="task4_detail">Выявление внутренних противоречий и логических ошибок</td>
+            <td><a href="https://claritybot.io" target="_blank" class="source-link">claritybot.io ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="task-name" data-i18n="task5">Модерация контента</span><div class="task-desc" data-i18n="task5_desc">Оценка на соответствие стандартам</div></td>
+            <td data-i18n="task5_detail">Безопасность, этика, законодательство</td>
+            <td><a href="https://remotecategory.com" target="_blank" class="source-link">remotecategory.com ↗</a></td>
+          </tr>
+          <tr>
+            <td><span class="task-name" data-i18n="task6">Разметка данных</span><div class="task-desc" data-i18n="task6_desc">Подготовка данных для обучения</div></td>
+            <td data-i18n="task6_detail">Категоризация и аннотирование для дообучения моделей ИИ</td>
+            <td><a href="https://remotecategory.com" target="_blank" class="source-link">remotecategory.com ↗</a></td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="warning-box">
+        <strong data-i18n="warning_title">⚠️ Важно:</strong> 
+        <span data-i18n="warning_text">ИИ-генераторы предсказывают вероятные последовательности слов, а не «истину». 
+        Они могут уверенно формулировать ложные утверждения — именно поэтому человеческая верификация критически важна.</span>
+        <a href="https://claritybot.io" target="_blank" class="source-link" style="margin-left:8px;">claritybot.io ↗</a>
+      </div>
+    </div>
+
+    <!-- 🛠️ НАВЫКИ -->
+    <div class="card lib-section" data-tags="skills hard-soft">
+      <h3 data-i18n="skills_section">🛠️ Какие навыки нужны?</h3>
+      <div class="skills-grid">
+        <div class="skill-card">
+          <h4 data-i18n="hard_skills">🔹 Hard Skills</h4>
+          <ul>
+            <li data-i18n="hard1">Аналитическое мышление и работа с большими данными</li>
+            <li data-i18n="hard2">Понимание принципов LLM и ограничений ИИ</li>
+            <li data-i18n="hard3">Навыки фактчекинга и работы с первоисточниками</li>
+            <li data-i18n="hard4">Знание регуляторных требований (персданные, авторское право)</li>
+            <li data-i18n="hard5">Базовое владение инструментами: Copyleaks, Clarity, MyDetector</li>
+          </ul>
+        </div>
+        <div class="skill-card">
+          <h4 data-i18n="soft_skills">🔹 Soft Skills</h4>
+          <ul>
+            <li data-i18n="soft1">Внимательность к деталям — замечать мельчайшие несоответствия</li>
+            <li data-i18n="soft2">Критическое мышление — подвергать сомнению правдоподобное</li>
+            <li data-i18n="soft3">Стрессоустойчивость — работа с монотонными задачами</li>
+            <li data-i18n="soft4">Коммуникабельность — чёткое обоснование решений</li>
+            <li data-i18n="soft5">Этичность — работа с конфиденциальными данными <a href="https://sky.pro" target="_blank" class="source-link">sky.pro ↗</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 💼 ОТРАСЛИ -->
+    <div class="card lib-section" data-tags="jobs industries">
+      <h3 data-i18n="industries_title">💼 Где работают верификаторы ИИ?</h3>
+      <div class="industry-grid">
+        <div class="industry-card">
+          <h4 data-i18n="ind_it">IT / Разработка ИИ</h4>
+          <p data-i18n="ind_it_desc">Оценка ответов чат-ботов, дообучение моделей, тестирование <a href="https://habr.com" target="_blank" class="source-link">habr.com ↗</a></p>
+        </div>
+        <div class="industry-card">
+          <h4 data-i18n="ind_fintech">Финтех и банки</h4>
+          <p data-i18n="ind_fintech_desc">KYC, AML-скрининг, предотвращение мошенничества <a href="https://sky.pro" target="_blank" class="source-link">sky.pro ↗</a></p>
+        </div>
+        <div class="industry-card">
+          <h4 data-i18n="ind_media">Медиа и журналистика</h4>
+          <p data-i18n="ind_media_desc">Фактчекинг новостей, проверка источников, борьба с дезинформацией</p>
+        </div>
+        <div class="industry-card">
+          <h4 data-i18n="ind_ecom">E-commerce</h4>
+          <p data-i18n="ind_ecom_desc">Проверка описаний товаров, модерация отзывов, выявление фейков</p>
+        </div>
+        <div class="industry-card">
+          <h4 data-i18n="ind_edu">Образование</h4>
+          <p data-i18n="ind_edu_desc">Оценка ИИ-репетиторов, проверка автоматических оценок</p>
+        </div>
+        <div class="industry-card">
+          <h4 data-i18n="ind_health">Здравоохранение</h4>
+          <p data-i18n="ind_health_desc">Верификация мед. рекомендаций, контроль безопасности ИИ-диагностики</p>
+        </div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--muted); margin-top:12px; text-align:center;" data-i18n="salary_note">Стартовые зарплаты: $400-1500/мес • Удалённо • Гибкий график</p>
+    </div>
+
+    <!-- 📋 Чек-листы и инструменты (остались) -->
+    <div class="card lib-section" data-tags="checklists sop">
+      <h3 data-i18n="lib_checklists">📋 Чек-листы и SOP</h3>
+      <div class="lib-item"><h4 data-i18n="lib_basic">✅ Базовый чек-лист</h4><p>1. Проверка источников (мин. 2)<br>2. Перекрёстная проверка дат/имён<br>3. Анализ тона и соответствия бренду</p></div>
+      <div class="lib-item"><h4 data-i18n="lib_sop">📄 SOP для редакции</h4><p data-i18n="lib_sop_desc">Стандартная процедура: приём → автопроверка → ручная верификация → отчёт → публикация.</p><span class="source-tag" data-i18n="lib_download">Скачать шаблон</span></div>
+    </div>
+    <div class="card lib-section" data-tags="tools deepfake">
+      <h3 data-i18n="lib_tools">🛠️ Инструменты верификатора</h3>
+      <div class="lib-item"><h4 data-i18n="lib_deepfake">🔍 Детекторы дипфейков</h4><p data-i18n="lib_deepfake_desc">Hugging Face, Intel FakeCatcher. Признаки: артефакты кожи, неестественное моргание, рассинхрон аудио.</p></div>
+      <div class="lib-item"><h4 data-i18n="lib_data">📊 Проверка данных</h4><p data-i18n="lib_data_desc">Google Dataset Search, Our World in Data. Методы: поиск первоисточника, проверка методологии.</p></div>
+    </div>
+  </section>
+
+  <!-- 📅 PROGRESS -->
+  <section id="progress" class="tab-content">
+    <div class="card">
+      <h3 data-i18n="progress_path">📈 Ваш путь к профессии</h3>
+      <ol style="padding-left:20px; color:var(--muted); line-height:1.8; font-size:0.82rem;">
+        <li><b data-i18n="days1_3">Дни 1-3:</b> <span data-i18n="days1_3_desc">Галлюцинации ИИ, источники, юридические риски</span></li>
+        <li><b data-i18n="days4_6">Дни 4-6:</b> <span data-i18n="days4_6_desc">Тон/стиль, данные, дипфейки</span></li>
+        <li><b data-i18n="days7_8">Дни 7-8:</b> <span data-i18n="days7_8_desc">Чек-листы, реальные кейсы</span></li>
+        <li><b data-i18n="day9">День 9:</b> <span data-i18n="day9_desc">Оформление портфолио</span></li>
+        <li><b data-i18n="day10">День 10:</b> <span data-i18n="day10_desc">ЭКЗАМЕН (нужно 10/10)</span></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 data-i18n="skills_title">🎯 Навыки выпускника</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+        <span class="salary-tag" data-i18n="skill1">Фактчекинг</span><span class="salary-tag" data-i18n="skill2">Критическое мышление</span><span class="salary-tag" data-i18n="skill3">Проверка метаданных</span><span class="salary-tag" data-i18n="skill4">Copyright & GDPR</span><span class="salary-tag" data-i18n="skill5">SOP</span><span class="salary-tag" data-i18n="skill6">Этика ИИ</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="support">
+    <h3 data-i18n="support_title">🤝 ПОДДЕРЖАТЬ ПРОЕКТ 💙</h3>
+    <p data-i18n="support_desc">Приложение бесплатное. Было и останется.<br>Поддержка разработки:</p>
+    <div class="phone-box"><span id="phoneNum" style="color:var(--gold); font-weight:bold;">8-920-227-56-76</span></div>
+    <button class="btn secondary" style="margin-top:6px; font-size:0.8rem;" onclick="app.copyPhone()" data-i18n="copy_phone">📋 Копировать</button>
+    <a href="https://ancf-hue.github.io/" target="_blank" class="catalog-link" data-i18n="catalog_link">🌟 Каталог Anti-AI Shield</a>
+  </section>
+
+  <footer data-i18n="footer">Анти-ИИ | 100% офлайн | Верификация ИИ-контента | HARD MODE</footer>
+</main>
+
+<!-- GUIDE MODAL -->
+<div id="guideModal" class="modal" onclick="if(event.target===this)app.closeModal('guideModal')">
+  <div class="modal-content">
+    <button class="modal-close" onclick="app.closeModal('guideModal')">✕</button>
+    <h2 style="color:var(--gold); margin-bottom:12px;" data-i18n="guide_title">🚀 План 10 дней</h2>
+    <ol style="padding-left:20px; color:var(--muted); line-height:1.8; font-size:0.85rem;">
+      <li><b data-i18n="day1">День 1:</b> <span data-i18n="day1_desc">Галлюцинации ИИ</span></li>
+      <li><b data-i18n="day2">День 2:</b> <span data-i18n="day2_desc">Перекрёстная проверка</span></li>
+      <li><b data-i18n="day3">День 3:</b> <span data-i18n="day3_desc">Юридические риски</span></li>
+      <li><b data-i18n="day4">День 4:</b> <span data-i18n="day4_desc">Тон и стиль</span></li>
+      <li><b data-i18n="day5">День 5:</b> <span data-i18n="day5_desc">Верификация данных</span></li>
+      <li><b data-i18n="day6">День 6:</b> <span data-i18n="day6_desc">Дипфейки и медиа</span></li>
+      <li><b data-i18n="day7">День 7:</b> <span data-i18n="day7_desc">Чек-листы и SOP</span></li>
+      <li><b data-i18n="day8">День 8:</b> <span data-i18n="day8_desc">Реальные кейсы</span></li>
+      <li><b data-i18n="day9">День 9:</b> <span data-i18n="day9_desc">Портфолио</span></li>
+      <li><b data-i18n="day10">День 10:</b> <span data-i18n="day10_desc">ЭКЗАМЕН (10/10)</span></li>
+    </ol>
+    <button class="btn" style="margin-top:16px; width:100%; background:linear-gradient(135deg, var(--gold), var(--accent));" onclick="app.closeModal('guideModal')" data-i18n="guide_start">Начинаю!</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ========== 📦 DATA ==========
+  const COURSE = [
+    { day: 1, title: "🤖 Галлюцинации ИИ", content: "ИИ часто 'выдумывает' факты. <b>Найдите 2 выдуманных факта:</b>",
+      case: `"Компания NeuralCore была основана в 2018 году Илоном Маском в Берлине. Их продукт Cortex-7 использует квантовые нейросети для предсказания погоды с точностью 99.9%."`,
+      task: "Напишите, какие 2 факта выдуманы и почему.",
+      check: (a) => (/маск/i.test(a) || /elon/i.test(a)) && (/берлин/i.test(a) || /germany/i.test(a)) || (/квантов/i.test(a) || /quantum/i.test(a)),
+      hint: "1. NeuralCore не основана Маском. 2. В Берлине нет штаб-квартиры. 3. Квантовые нейросети для погоды — вымысел.",
+      quiz: { q: "Что такое 'галлюцинация' ИИ?", opts: ["Сбой сервера", "Генерация правдоподобного, но ложного текста", "Ошибка пользователя"], correct: 1 }},
+    { day: 2, title: "🔍 Перекрёстная проверка", content: "Никогда не доверяйте одному источнику. <b>Проверьте утверждение:</b>",
+      case: `"По данным ВОЗ, потребление кофе снижает риск болезни Альцгеймера на 45%."`,
+      task: "Как вы проверите это утверждение? Опишите 3 шага.",
+      check: (a) => (/источник/i.test(a) || /who/i.test(a) || /сайт/i.test(a)) && (/исследовани/i.test(a) || /study/i.test(a)) && (/перекрестн/i.test(a) || /сравн/i.test(a) || /два/i.test(a)),
+      hint: "1. Найти первоисточник на сайте ВОЗ. 2. Проверить дату и методологию. 3. Сравнить с другими базами (PubMed, Lancet).",
+      quiz: { q: "Сколько независимых источников нужно?", opts: ["1", "Минимум 2-3", "10+"], correct: 1 }},
+    { day: 3, title: "⚖️ Юридические риски", content: "ИИ-контент может нарушать законы. <b>Найдите нарушение:</b>",
+      case: `"Скачайте наше приложение и получите доступ к базе данных всех пациентов клиник Европы. Мы собрали её без их ведома."`,
+      task: "Какое право нарушено? Напишите название закона.",
+      check: (a) => (/gdpr/i.test(a) || /персональн/i.test(a) || /данны/i.test(a)) || (/согласи/i.test(a) || /consent/i.test(a)),
+      hint: "Нарушение GDPR: сбор персональных данных без согласия. Также нарушение медицинской этики.",
+      quiz: { q: "Что требует GDPR?", opts: ["Ничего", "Явное согласие субъекта", "Только уведомление"], correct: 1 }},
+    { day: 4, title: "🎨 Проверка тона и стиля", content: "Текст должен соответствовать гайдлайну. <b>Определите проблему:</b>",
+      case: `"Йо, бро! Наш новый крем для лица просто взрыв мозга! Зацени, как кожа прёт! 🔥🔥"` + " (Бренд: Люксовая косметика, тон: сдержанный)",
+      task: "Почему этот текст не подходит? Как исправить?",
+      check: (a) => (/тон/i.test(a) || /стиль/i.test(a)) && (/бренд/i.test(a) || /люкс/i.test(a) || /сдержан/i.test(a)),
+      hint: "Нарушен тон бренда (слишком разговорный, сленг). Нужно переписать в сдержанном, элегантном стиле.",
+      quiz: { q: "Что такое 'Brand Voice'?", opts: ["Голос диктора", "Уникальный стиль общения бренда", "Настройка микрофона"], correct: 1 }},
+    { day: 5, title: "📊 Верификация данных", content: "Цифры часто манипулируют. <b>Найдите ошибку:</b>",
+      case: `"Продажи выросли на 300%! В январе было 10 продаж, в феврале — 40."`,
+      task: "В чём манипуляция? Как корректно представить данные?",
+      check: (a) => (/база/i.test(a) || /10/i.test(a)) && (/мал/i.test(a) || /низк/i.test(a)) && (/абсолютн/i.test(a) || /числ/i.test(a)),
+      hint: "Рост с 10 до 40 = +300%, но база слишком мала. Корректно: указать абсолютные числа (10 → 40) и контекст.",
+      quiz: { q: "Почему 'рост на 300%' может вводить в заблуждение?", opts: ["Это всегда ложь", "Не указана малая база", "Проценты запрещены"], correct: 1 }},
+    { day: 6, title: "🎭 Дипфейки и медиа", content: "ИИ создаёт поддельные фото/видео. <b>Найдите признаки дипфейка:</b>",
+      case: `Описание: "Политик выступает. Лицо слегка 'плывёт'. Тени на шее не совпадают с освещением. Аудио чуть рассинхронизировано."`,
+      task: "Какие 3 признака указывают на дипфейк?",
+      check: (a) => (/тень/i.test(a) || /освещен/i.test(a)) && (/рассинхрон/i.test(a) || /аудио/i.test(a)) && (/лицо/i.test(a) || /кожа/i.test(a) || /плывёт/i.test(a)),
+      hint: "1. Рассинхрон аудио/видео. 2. Неестественные тени. 3. Артефакты кожи при движении.",
+      quiz: { q: "Какой инструмент помогает проверить фото?", opts: ["Google Lens / Reverse Image Search", "Калькулятор", "Блокнот"], correct: 1 }},
+    { day: 7, title: "📋 Чек-листы и SOP", content: "Профессионал работает по регламенту. <b>Создайте пункт чек-листа:</b>",
+      case: `Задача: Верификация новостной статьи перед публикацией`,
+      task: "Напишите 1 конкретный пункт чек-листа для верификатора.",
+      check: (a) => (/источник/i.test(a) || /проверк/i.test(a)) || (/дата/i.test(a)) || (/автор/i.test(a)) || (/факт/i.test(a)),
+      hint: "Пример: '✅ Проверены все имена и должности через официальные реестры.'",
+      quiz: { q: "Что такое SOP?", opts: ["Стандартная операционная процедура", "Система оповещения", "Список покупок"], correct: 1 }},
+    { day: 8, title: "🔎 Практика: Кейсы", content: "Разбор комплексного случая. <b>Оцените текст:</b>",
+      case: `"Новый супер-препарат 'BioCure' вылечивает диабет за 3 дня! Купите сейчас со скидкой 50%. Клиника 'HealthPlus' гарантирует результат."`,
+      task: "Назовите 3 красных флага.",
+      check: (a) => (/лечит/i.test(a) || /вылечивает/i.test(a)) && (/скидк/i.test(a) || /купите/i.test(a)) && (/гарант/i.test(a) || /обещан/i.test(a)),
+      hint: "1. Медицинские заявления без исследований. 2. Агрессивный продажник. 3. Гарантия результата в медицине (запрещено).",
+      quiz: { q: "Что запрещено в медицинской рекламе?", opts: ["Указание цены", "Гарантия излечения", "Фото врача"], correct: 1 }},
+    { day: 9, title: "📁 Оформление портфолио", content: "Работодатель смотрит на кейсы. <b>Опишите структуру:</b>",
+      case: `Задача: Подготовить отчёт по верификации для работодателя`,
+      task: "Напишите 3 раздела, которые должны быть в отчёте верификатора.",
+      check: (a) => (/исходн/i.test(a) || /текст/i.test(a)) && (/ошибк/i.test(a) || /нарушен/i.test(a)) && (/исправлен/i.test(a) || /рекомендац/i.test(a)),
+      hint: "1. Исходный текст. 2. Выявленные ошибки. 3. Исправленный вариант + рекомендации.",
+      quiz: { q: "Сколько кейсов нужно для портфолио?", opts: ["1", "Минимум 3-5", "100"], correct: 1 }},
+    { day: 10, title: "🏆 ФИНАЛЬНЫЙ ЭКЗАМЕН", content: "Проверка всех навыков. Нужно 10 из 10.", isExam: true,
+      examQuestions: [
+        { q: "ИИ написал: 'Эйнштейн изобрёл лампочку'. Это правда?", correct: false, expl: "Лампочку изобрёл Эдисон." },
+        { q: "Для проверки факта достаточно одного источника из Википедии.", correct: false, expl: "Нужно минимум 2-3 независимых источника." },
+        { q: "Сбор email-адресов без согласия нарушает GDPR.", correct: true, expl: "GDPR требует явного согласия." },
+        { q: "Тон текста должен соответствовать гайдлайну бренда.", correct: true, expl: "Нарушение тона снижает доверие." },
+        { q: "Рост продаж с 2 до 6 = +300%. Это манипуляция?", correct: true, expl: "Да, без указания малой базы это вводит в заблуждение." },
+        { q: "Рассинхрон аудио и губ — признак дипфейка.", correct: true, expl: "Один из ключевых артефактов." },
+        { q: "SOP — это документ, описывающий стандартные процедуры.", correct: true, expl: "Standard Operating Procedure." },
+        { q: "В медицинской рекламе можно гарантировать излечение.", correct: false, expl: "Запрещено законом." },
+        { q: "Портфолио должно содержать исходник, ошибки и исправление.", correct: true, expl: "Показывает ход мысли." },
+        { q: "Фактчекинг — это проверка достоверности информации.", correct: true, expl: "Основа профессии." }
+      ]
+    }
+  ];
+
+  const PRACTICE_CASES = [
+    { id: "p1", title: "Кейс 1: Новостная заметка", text: "Учёные доказали, что лунный свет заряжает смартфоны быстрее солнечного.", task: "Найдите вымысел.", check: (a) => /лунн.*свет/i.test(a) && /заряж/i.test(a) },
+    { id: "p2", title: "Кейс 2: Рекламный пост", text: "Купите курс 'Стань миллионером за 24 часа'! 100% гарантия возврата.", task: "Найдите риск.", check: (a) => /гарант/i.test(a) || /24 часа/i.test(a) || /миллионер/i.test(a) },
+    { id: "p3", title: "Кейс 3: Статистика", text: "Посещение сайта выросло на 500%! Было 2 визита, стало 12.", task: "Оцените подачу.", check: (a) => /баз/i.test(a) || /мал/i.test(a) || /абсолютн/i.test(a) }
+  ];
+
+  // ========== 🌐 i18n - ПОЛНЫЕ ПЕРЕВОДЫ С ПРОФЕССИЕЙ ==========
+  const i18n = {
+    ru: {
+      title: "Qwen Fact-Checker",
+      hero_title: "Anti-AI Academy: Qwen Верификатор",
+      hero_subtitle: "🎓 10 дней практики • 💼 $400-1500/мес • 🔐 100% офлайн",
+      badge1: "🛡️ Верификация", badge2: "📊 Фактчекинг", badge3: "🌍 Удалённо",
+      demo_mode: "Демо-режим",
+      guide_btn: "📖 План 10 дней",
+      voice_title: "Озвучка",
+      concept1: "🤖 Галлюцинации", concept2: "🔍 Фактчекинг", concept3: "🎭 Дипфейки",
+      tab_course: "🎓 Обучение", tab_practice: "🛡️ Практика", tab_library: "📚 Библиотека", tab_progress: "📅 Прогресс",
+      cert_conditions: "🏆 УСЛОВИЯ СЕРТИФИКАТА",
+      cond1: "10/10 уроков", cond1_sub: "Пройти все задания",
+      cond2: "10/10 на экзамене", cond2_sub: "Без ошибок",
+      cond3: "Портфолио", cond3_sub: "5 проверенных кейсов",
+      cert_warning: "⚠️ Только идеальный результат даёт доступ к трудоустройству.",
+      progress_title: "📊 Прогресс", lessons_done: "Уроков пройдено",
+      reset_btn: "🔄 Сбросить прогресс", reset_warning: "⚠️ Все достижения будут удалены",
+      cert_heading: "🎓 СЕРТИФИКАТ",
+      cert_course: "Курс: ",
+      cert_confirms: "Настоящим подтверждается, что",
+      cert_who: "Сертифицированный AI Fact-Checker",
+      cert_completed: "успешно завершил курс верификации ИИ-контента с результатом <b style=\"color:var(--success);\">10/10</b>",
+      cert_issuer: "Издатель:",
+      cert_date_label: "Дата выдачи:",
+      cert_download: "💾 Скачать", cert_import: "📤 Загрузить", cert_portfolio: "📁 Портфолио",
+      cert_badge: "Qwen Fact-Checker",
+      cert_print: "🖨️ Печать / PDF", cert_practice: "🛡️ Практика",
+      cert_validate_title: "🔍 Проверка сертификата", cert_validate_btn: "✅ Проверить",
+      cert_security: "🔒 Хранится локально • Подпись: SHA-256 (демо)",
+      practice_title: "🛡️ Интерактивная практика", practice_subtitle: "Тренажёр верификации: находите ошибки, фейки и риски",
+      library_title: "📚 Библиотека Верификатора", library_subtitle: "Чек-листы, SOP, инструменты и гайды",
+      
+      // 🔍 НОВАЯ ПРОФЕССИЯ
+      profession_title: "🔍 Профессия: AI-верификатор",
+      profession_desc: "Новая и быстрорастущая профессия на стыке технологий, аналитики и контент-менеджмента. Специалист проверяет, оценивает и улучшает контент, созданный или обработанный искусственным интеллектом.",
+      tasks_title: "📋 Что делает AI-верификатор?",
+      task_col: "Задача", desc_col: "Описание", source_col: "Источник",
+      task1: "Оценка ответов ИИ", task1_desc: "Сравнение вариантов по критериям", task1_detail: "Точность, полезность, естественность, соответствие гайдлайнам",
+      task2: "Фактчекинг", task2_desc: "Проверка фактической точности", task2_detail: "Выявление «галлюцинаций» и вымышленных фактов",
+      task3: "Проверка источников", task3_desc: "Верификация цитат и ссылок", task3_detail: "Существуют ли, доступны ли, подтверждают ли",
+      task4: "Логическая согласованность", task4_desc: "Анализ аргументации", task4_detail: "Выявление противоречий и логических ошибок",
+      task5: "Модерация контента", task5_desc: "Оценка на соответствие стандартам", task5_detail: "Безопасность, этика, законодательство",
+      task6: "Разметка данных", task6_desc: "Подготовка данных для обучения", task6_detail: "Категоризация и аннотирование для дообучения моделей",
+      src_remotecategory: "remotecategory.com ↗", src_claritybot: "claritybot.io ↗",
+      warning_title: "⚠️ Важно:",
+      warning_text: "ИИ-генераторы предсказывают вероятные последовательности слов, а не «истину». Они могут уверенно формулировать ложные утверждения — именно поэтому человеческая верификация критически важна.",
+      
+      skills_section: "🛠️ Какие навыки нужны?",
+      hard_skills: "🔹 Hard Skills", soft_skills: "🔹 Soft Skills",
+      hard1: "Аналитическое мышление и работа с большими данными",
+      hard2: "Понимание принципов LLM и ограничений ИИ",
+      hard3: "Навыки фактчекинга и работы с первоисточниками",
+      hard4: "Знание регуляторных требований (персданные, авторское право)",
+      hard5: "Инструменты: Copyleaks, Clarity, MyDetector",
+      soft1: "Внимательность к деталям — замечать мельчайшие несоответствия",
+      soft2: "Критическое мышление — подвергать сомнению правдоподобное",
+      soft3: "Стрессоустойчивость — работа с монотонными задачами",
+      soft4: "Коммуникабельность — чёткое обоснование решений",
+      soft5: "Этичность — работа с конфиденциальными данными",
+      
+      industries_title: "💼 Где работают верификаторы ИИ?",
+      ind_it: "IT / Разработка ИИ", ind_it_desc: "Оценка чат-ботов, дообучение моделей, тестирование",
+      ind_fintech: "Финтех и банки", ind_fintech_desc: "KYC, AML-скрининг, предотвращение мошенничества",
+      ind_media: "Медиа и журналистика", ind_media_desc: "Фактчекинг новостей, проверка источников",
+      ind_ecom: "E-commerce", ind_ecom_desc: "Проверка описаний, модерация отзывов, выявление фейков",
+      ind_edu: "Образование", ind_edu_desc: "Оценка ИИ-репетиторов, проверка авто-оценок",
+      ind_health: "Здравоохранение", ind_health_desc: "Верификация мед. рекомендаций, контроль ИИ-диагностики",
+      salary_note: "Стартовые зарплаты: $400-1500/мес • Удалённо • Гибкий график",
+      
+      lib_checklists: "📋 Чек-листы и SOP", lib_basic: "✅ Базовый чек-лист", lib_sop: "📄 SOP для редакции",
+      lib_sop_desc: "Стандартная процедура: приём → автопроверка → ручная верификация → отчёт → публикация.",
+      lib_download: "Скачать шаблон",
+      lib_tools: "🛠️ Инструменты верификатора", lib_deepfake: "🔍 Детекторы дипфейков",
+      lib_deepfake_desc: "Hugging Face, Intel FakeCatcher. Признаки: артефакты кожи, неестественное моргание, рассинхрон аудио.",
+      lib_data: "📊 Проверка данных", lib_data_desc: "Google Dataset Search, Our World in Data. Методы: поиск первоисточника, проверка методологии.",
+      
+      progress_path: "📈 Ваш путь к профессии",
+      days1_3: "Дни 1-3:", days1_3_desc: "Галлюцинации ИИ, источники, юридические риски",
+      days4_6: "Дни 4-6:", days4_6_desc: "Тон/стиль, данные, дипфейки",
+      days7_8: "Дни 7-8:", days7_8_desc: "Чек-листы, реальные кейсы",
+      day9: "День 9:", day9_desc: "Оформление портфолио",
+      day10: "День 10:", day10_desc: "ЭКЗАМЕН (нужно 10/10)",
+      skills_title: "🎯 Навыки выпускника",
+      skill1: "Фактчекинг", skill2: "Критическое мышление", skill3: "Проверка метаданных",
+      skill4: "Copyright & GDPR", skill5: "SOP", skill6: "Этика ИИ",
+      support_title: "🤝 ПОДДЕРЖАТЬ ПРОЕКТ 💙",
+      support_desc: "Приложение бесплатное. Было и останется.<br>Поддержка разработки:",
+      copy_phone: "📋 Копировать", catalog_link: "🌟 Каталог Anti-AI Shield",
+      footer: "Анти-ИИ | 100% офлайн | Верификация ИИ-контента | HARD MODE",
+      guide_title: "🚀 План 10 дней",
+      day1: "День 1:", day1_desc: "Галлюцинации ИИ",
+      day2: "День 2:", day2_desc: "Перекрёстная проверка",
+      day3: "День 3:", day3_desc: "Юридические риски",
+      day4: "День 4:", day4_desc: "Тон и стиль",
+      day5: "День 5:", day5_desc: "Верификация данных",
+      day6: "День 6:", day6_desc: "Дипфейки и медиа",
+      day7: "День 7:", day7_desc: "Чек-листы и SOP",
+      day8: "День 8:", day8_desc: "Реальные кейсы",
+      day9: "День 9:", day9_desc: "Портфолио",
+      day10: "День 10:", day10_desc: "ЭКЗАМЕН (10/10)",
+      guide_start: "Начинаю!",
+      cert_valid: "✅ Сертификат действителен", cert_invalid: "❌ Сертификат не найден",
+      voice_on: "Озвучка включена", voice_off: "Озвучка выключена",
+      lang_changed: "Язык изменён", progress_reset: "Прогресс сброшен",
+      cert_downloaded: "Сертификат скачан", portfolio_downloaded: "Портфолио скачано",
+      print_cert: "Печать...", copied: "Скопировано",
+      too_short: "⚠️ Слишком кратко! Минимум 10 символов.",
+      correct: "✅ Верно! Урок завершён!", incorrect: "❌ Не совсем так. Изучите подсказку.",
+      exam_perfect: "🎉 ИДЕАЛЬНО! 10 из 10", exam_failed: "😔 Не сдано. Набрано {score} из 10. Нужно 10.",
+      cert_locked: "Сначала получите сертификат (10/10).", cert_imported: "✅ Сертификат загружен!",
+      cert_bad_sig: "❌ Неверная подпись.", cert_file_error: "❌ Ошибка файла.",
+      reset_confirm: "⚠️ Сбросить весь прогресс?", reset_done: "✅ Сброшено! Начинайте с Дня 1.",
+      day_label: "День", task_label: "Задание", answer_placeholder: "Ваш ответ...",
+      check_btn: "Проверить", hint_btn: "Подсказка", answer_btn: "Ответ",
+      locked_msg: "Пройдите предыдущий урок", final_exam: "ФИНАЛЬНЫЙ ЭКЗАМЕН",
+      exam_instr: "Ответьте на 10 вопросов. Нужно <b>10 правильных</b>.",
+      question: "Вопрос", true_opt: "Верно", false_opt: "Неверно",
+      submit_exam: "Сдать экзамен", out_of: "из", cert_unlocked: "Сертификат и портфолио разблокированы ↓",
+      retry_btn: "Ещё раз", too_short_practice: "Слишком кратко",
+      practice_correct: "Верно! Вы нашли ключевую проблему.",
+      practice_incorrect: "Попробуйте ещё раз. Ищите манипуляции, риски или вымысел.",
+      cert_label: "Сертификат", date_label: "Дата", cases_label: "КЕЙСЫ",
+      case1: "Верификация новостного текста (День 1)",
+      case2: "Проверка статистики (День 5)",
+      case3: "Анализ рекламного поста (День 8)",
+      case4: "Оценка тона бренда (День 4)",
+      case5: "Детекция дипфейка (День 6)",
+      skills_label: "Навыки", skills_list: "Фактчекинг, GDPR, SOP, Критическое мышление",
+      cert_title: "Сертификат", invalid_format: "Неверный формат", issued_label: "Выдан"
+    },
+    en: {
+      title: "Qwen Fact-Checker",
+      hero_title: "Anti-AI Academy: Qwen Verifier",
+      hero_subtitle: "🎓 10 days practice • 💼 $400-1500/mo • 🔐 100% offline",
+      badge1: "🛡️ Verification", badge2: "📊 Fact-checking", badge3: "🌍 Remote",
+      demo_mode: "Demo mode",
+      guide_btn: "📖 10-Day Plan",
+      voice_title: "Voice",
+      concept1: "🤖 Hallucinations", concept2: "🔍 Fact-checking", concept3: "🎭 Deepfakes",
+      tab_course: "🎓 Course", tab_practice: "🛡️ Practice", tab_library: "📚 Library", tab_progress: "📅 Progress",
+      cert_conditions: "🏆 CERTIFICATE REQUIREMENTS",
+      cond1: "10/10 lessons", cond1_sub: "Complete all tasks",
+      cond2: "10/10 on exam", cond2_sub: "No mistakes",
+      cond3: "Portfolio", cond3_sub: "5 verified cases",
+      cert_warning: "⚠️ Only perfect results grant job access.",
+      progress_title: "📊 Progress", lessons_done: "Lessons completed",
+      reset_btn: "🔄 Reset progress", reset_warning: "⚠️ All achievements will be deleted",
+      cert_heading: "🎓 CERTIFICATE",
+      cert_course: "Course: ",
+      cert_confirms: "This certifies that",
+      cert_who: "Certified AI Fact-Checker",
+      cert_completed: "has successfully completed the AI content verification course with a score of <b style=\"color:var(--success);\">10/10</b>",
+      cert_issuer: "Issuer:",
+      cert_date_label: "Issue date:",
+      cert_download: "💾 Download", cert_import: "📤 Import", cert_portfolio: "📁 Portfolio",
+      cert_badge: "Qwen Fact-Checker",
+      cert_print: "🖨️ Print / PDF", cert_practice: "🛡️ Practice",
+      cert_validate_title: "🔍 Verify certificate", cert_validate_btn: "✅ Check",
+      cert_security: "🔒 Stored locally • Signature: SHA-256 (demo)",
+      practice_title: "🛡️ Interactive Practice", practice_subtitle: "Verification trainer: find errors, fakes and risks",
+      library_title: "📚 Verifier Library", library_subtitle: "Checklists, SOPs, tools and guides",
+      
+      // 🔍 PROFESSION
+      profession_title: "🔍 Profession: AI Verifier",
+      profession_desc: "A new fast-growing profession at the intersection of technology, analytics and content management. Specialist verifies, evaluates and improves AI-generated or AI-processed content.",
+      tasks_title: "📋 What does an AI Verifier do?",
+      task_col: "Task", desc_col: "Description", source_col: "Source",
+      task1: "AI Response Evaluation", task1_desc: "Compare variants by criteria", task1_detail: "Accuracy, usefulness, naturalness, guideline compliance",
+      task2: "Fact-checking", task2_desc: "Verify factual accuracy", task2_detail: "Detect hallucinations and fabricated facts",
+      task3: "Source Verification", task3_desc: "Verify quotes and links", task3_detail: "Do they exist, are accessible, do they confirm claims",
+      task4: "Logical Consistency", task4_desc: "Analyze argumentation", task4_detail: "Identify contradictions and logical gaps",
+      task5: "Content Moderation", task5_desc: "Evaluate compliance with standards", task5_detail: "Safety, ethics, legislation",
+      task6: "Data Annotation", task6_desc: "Prepare data for training", task6_detail: "Categorization and labeling for model fine-tuning",
+      src_remotecategory: "remotecategory.com ↗", src_claritybot: "claritybot.io ↗",
+      warning_title: "⚠️ Important:",
+      warning_text: "AI generators predict probable word sequences, not 'truth'. They can confidently state falsehoods — that's why human verification is critically important.",
+      
+      skills_section: "🛠️ Required Skills",
+      hard_skills: "🔹 Hard Skills", soft_skills: "🔹 Soft Skills",
+      hard1: "Analytical thinking & big data handling",
+      hard2: "Understanding LLM principles and AI limitations",
+      hard3: "Fact-checking and primary source research",
+      hard4: "Regulatory knowledge (privacy, copyright, AI ethics)",
+      hard5: "Tools: Copyleaks, Clarity, MyDetector",
+      soft1: "Attention to detail — notice smallest inconsistencies",
+      soft2: "Critical thinking — question even plausible claims",
+      soft3: "Stress tolerance — work with repetitive tasks",
+      soft4: "Communication — clearly justify decisions",
+      soft5: "Ethics — handling confidential data",
+      
+      industries_title: "💼 Where do AI Verifiers work?",
+      ind_it: "IT / AI Development", ind_it_desc: "Chatbot evaluation, model fine-tuning, testing",
+      ind_fintech: "Fintech & Banking", ind_fintech_desc: "KYC, AML screening, fraud prevention",
+      ind_media: "Media & Journalism", ind_media_desc: "News fact-checking, source verification",
+      ind_ecom: "E-commerce", ind_ecom_desc: "Product description checks, review moderation",
+      ind_edu: "Education", ind_edu_desc: "AI tutor evaluation, auto-grade verification",
+      ind_health: "Healthcare", ind_health_desc: "Medical advice verification, AI diagnostics safety",
+      salary_note: "Starting salaries: $400-1500/mo • Remote • Flexible schedule",
+      
+      lib_checklists: "📋 Checklists & SOPs", lib_basic: "✅ Basic checklist", lib_sop: "📄 Editorial SOP",
+      lib_sop_desc: "Standard procedure: intake → auto-check → manual verification → report → publish.",
+      lib_download: "Download template",
+      lib_tools: "🛠️ Verifier tools", lib_deepfake: "🔍 Deepfake detectors",
+      lib_deepfake_desc: "Hugging Face, Intel FakeCatcher. Signs: skin artifacts, unnatural blinking, audio desync.",
+      lib_data: "📊 Data verification", lib_data_desc: "Google Dataset Search, Our World in Data. Methods: source search, methodology check.",
+      
+      progress_path: "📈 Your path to profession",
+      days1_3: "Days 1-3:", days1_3_desc: "AI hallucinations, sources, legal risks",
+      days4_6: "Days 4-6:", days4_6_desc: "Tone/style, data, deepfakes",
+      days7_8: "Days 7-8:", days7_8_desc: "Checklists, real cases",
+      day9: "Day 9:", day9_desc: "Portfolio preparation",
+      day10: "Day 10:", day10_desc: "EXAM (need 10/10)",
+      skills_title: "🎯 Graduate skills",
+      skill1: "Fact-checking", skill2: "Critical thinking", skill3: "Metadata verification",
+      skill4: "Copyright & GDPR", skill5: "SOP", skill6: "AI Ethics",
+      support_title: "🤝 SUPPORT THE PROJECT 💙",
+      support_desc: "App is free. Was and will remain.<br>Support development:",
+      copy_phone: "📋 Copy", catalog_link: "🌟 Anti-AI Shield Catalog",
+      footer: "Anti-AI | 100% offline | AI Content Verification | HARD MODE",
+      guide_title: "🚀 10-Day Plan",
+      day1: "Day 1:", day1_desc: "AI Hallucinations",
+      day2: "Day 2:", day2_desc: "Cross-checking",
+      day3: "Day 3:", day3_desc: "Legal risks",
+      day4: "Day 4:", day4_desc: "Tone and style",
+      day5: "Day 5:", day5_desc: "Data verification",
+      day6: "Day 6:", day6_desc: "Deepfakes and media",
+      day7: "Day 7:", day7_desc: "Checklists and SOPs",
+      day8: "Day 8:", day8_desc: "Real cases",
+      day9: "Day 9:", day9_desc: "Portfolio",
+      day10: "Day 10:", day10_desc: "EXAM (10/10)",
+      guide_start: "Let's go!",
+      cert_valid: "✅ Certificate is valid", cert_invalid: "❌ Certificate not found",
+      voice_on: "Voice enabled", voice_off: "Voice disabled",
+      lang_changed: "Language changed", progress_reset: "Progress reset",
+      cert_downloaded: "Certificate downloaded", portfolio_downloaded: "Portfolio downloaded",
+      print_cert: "Printing...", copied: "Copied",
+      too_short: "⚠️ Too short! Minimum 10 characters.",
+      correct: "✅ Correct! Lesson completed!", incorrect: "❌ Not quite. Check the hint.",
+      exam_perfect: "🎉 PERFECT! 10 out of 10", exam_failed: "😔 Not passed. Scored {score} out of 10. Need 10.",
+      cert_locked: "Get certificate first (10/10).", cert_imported: "✅ Certificate imported!",
+      cert_bad_sig: "❌ Invalid signature.", cert_file_error: "❌ File error.",
+      reset_confirm: "⚠️ Reset all progress?", reset_done: "✅ Reset! Start from Day 1.",
+      day_label: "Day", task_label: "Task", answer_placeholder: "Your answer...",
+      check_btn: "Check", hint_btn: "Hint", answer_btn: "Answer",
+      locked_msg: "Complete previous lesson first", final_exam: "FINAL EXAM",
+      exam_instr: "Answer 10 questions. Need <b>10 correct</b>.",
+      question: "Question", true_opt: "True", false_opt: "False",
+      submit_exam: "Submit Exam", out_of: "out of", cert_unlocked: "Certificate & portfolio unlocked ↓",
+      retry_btn: "Try again", too_short_practice: "Too short",
+      practice_correct: "Correct! You found the key issue.",
+      practice_incorrect: "Try again. Look for manipulations, risks or fiction.",
+      cert_label: "Certificate", date_label: "Date", cases_label: "CASES",
+      case1: "News text verification (Day 1)",
+      case2: "Statistics check (Day 5)",
+      case3: "Ad post analysis (Day 8)",
+      case4: "Brand tone evaluation (Day 4)",
+      case5: "Deepfake detection (Day 6)",
+      skills_label: "Skills", skills_list: "Fact-checking, GDPR, SOP, Critical thinking",
+      cert_title: "Certificate", invalid_format: "Invalid format", issued_label: "Issued"
+    }
+  };
+
+  // ========== 🔐 CERTIFICATE SIGNING ==========
+  const CERT_SECRET = "qwen_anti_ai_factchecker_2024_secret";
+  function generateCertSignature(certId) { return btoa(certId + CERT_SECRET).substring(0, 20); }
+  function verifyCertSignature(certId, signature) { return generateCertSignature(certId) === signature; }
+
+  // ========== 🧠 STATE ==========
+  let currentLang = localStorage.getItem('ai_fact_lang') || 'ru';
+  let courseProgress = (() => { try { const s = JSON.parse(localStorage.getItem('ai_fact_progress')); return Array.isArray(s) && s.length === 10 ? s : Array(10).fill(false); } catch(e) { return Array(10).fill(false); } })();
+  let examScore = parseInt(localStorage.getItem('ai_fact_exam')) || 0;
+  let certData = JSON.parse(localStorage.getItem('ai_fact_certificate')) || null;
+  let voiceEnabled = localStorage.getItem('ai_fact_voice') === 'true';
+  
+  // 🔊 Speech Synthesis
+  const synth = window.speechSynthesis;
+  let voices = [];
+  let currentVoice = null;
+  let lastSpeakTime = 0;
+  let voicesLoaded = false;
+
+  function saveState() {
+    localStorage.setItem('ai_fact_lang', currentLang);
+    localStorage.setItem('ai_fact_progress', JSON.stringify(courseProgress));
+    localStorage.setItem('ai_fact_exam', examScore.toString());
+    localStorage.setItem('ai_fact_certificate', JSON.stringify(certData));
+    localStorage.setItem('ai_fact_voice', voiceEnabled.toString());
+  }
+
+  // ========== 🔊 VOICE - IMPROVED ==========
+  function loadVoices() {
+    try {
+      voices = synth.getVoices();
+      if (voices.length > 0) {
+        voicesLoaded = true;
+        selectPreferredVoice();
+      }
+    } catch(e) {
+      console.warn('🔊 Voice load error:', e);
+    }
+  }
+
+  function selectPreferredVoice() {
+    const langPrefix = currentLang === 'ru' ? 'ru' : 'en';
+    currentVoice = voices.find(v => v.lang === `${langPrefix}-${langPrefix.toUpperCase()}`) ||
+                   voices.find(v => v.lang.startsWith(langPrefix)) ||
+                   voices.find(v => v.default) ||
+                   voices[0];
+  }
+
+  if (synth && synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = loadVoices;
+  }
+  
+  loadVoices();
+  setTimeout(loadVoices, 500);
+  setTimeout(loadVoices, 1500);
+  setTimeout(loadVoices, 3000);
+
+  function isSpeechSupported() {
+    return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  }
+
+  function speak(text, priority = false) {
+    if (!voiceEnabled || !isSpeechSupported() || !voicesLoaded) return;
+    
+    const now = Date.now();
+    if (now - lastSpeakTime < 1000 && !priority) return;
+    lastSpeakTime = now;
+    
+    if (priority && synth) synth.cancel();
+    
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = currentVoice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.lang = currentLang === 'ru' ? 'ru-RU' : 'en-US';
+      
+      utterance.onerror = (e) => {
+        console.warn('🔊 Speech error:', e.error);
+        if (voices.length > 1) {
+          const altVoice = voices.find(v => v !== currentVoice);
+          if (altVoice) {
+            currentVoice = altVoice;
+            utterance.voice = altVoice;
+            synth.speak(utterance);
+          }
+        }
+      };
+      
+      if (synth) synth.speak(utterance);
+    } catch(e) {
+      console.warn('🔊 Speak exception:', e);
+    }
+  }
+
+  function updateVoiceBtn() {
+    const btn = document.getElementById('voiceBtn');
+    if (btn) {
+      btn.textContent = voiceEnabled ? '🔊' : '🔇';
+      btn.classList.toggle('active', voiceEnabled);
+      btn.title = voiceEnabled 
+        ? (currentLang === 'ru' ? 'Отключить озвучку' : 'Disable voice') 
+        : (currentLang === 'ru' ? 'Включить озвучку' : 'Enable voice');
+    }
+  }
+
+  // ========== 🎨 APP OBJECT ==========
+  const app = {
+    t: function(key, params = {}) {
+      let text = i18n[currentLang]?.[key] || i18n.ru[key] || key;
+      Object.keys(params).forEach(p => {
+        text = text.replace(`{${p}}`, params[p]);
+      });
+      return text;
+    },
+    
+    applyLang: function() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = this.t(key);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.title = this.t(key);
+      });
+      const langBtn = document.getElementById('langBtn');
+      if (langBtn) langBtn.textContent = currentLang === 'ru' ? '🌐 EN' : '🌐 RU';
+      const tabMap = { 'course': 'tab_course', 'practice': 'tab_practice', 'library': 'tab_library', 'progress': 'tab_progress' };
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const key = tabMap[btn.dataset.tab];
+        if (key && this.t(key)) btn.textContent = this.t(key);
+      });
+      updateVoiceBtn();
+      this.renderCourse();
+      this.renderPractice();
+      speak(this.t('lang_changed'), true);
+    },
+    
+    toggleLang: function() {
+      currentLang = currentLang === 'ru' ? 'en' : 'ru';
+      saveState();
+      this.applyLang();
+    },
+    
+    switchTab: function(id) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+    },
+    
+    renderCourse: function() {
+      const container = document.getElementById('lessonsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      const completed = courseProgress.filter(c => c).length;
+      const progressEl = document.getElementById('courseProgress');
+      const barEl = document.getElementById('courseBar');
+      if (progressEl) progressEl.textContent = `${completed}/10`;
+      if (barEl) barEl.style.width = `${completed * 10}%`;
+      
+      const certBox = document.getElementById('certificateBox');
+      if (certBox) {
+        if (courseProgress[9] && examScore === 10) {
+          if (!certData) {
+            const certId = 'QWEN-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            certData = { 
+              id: certId, course: "Qwen AI Fact-Checker Course",
+              date: new Date().toLocaleDateString(currentLang === 'ru' ? 'ru-RU' : 'en-US'), 
+              sig: generateCertSignature(certId),
+              recipient: "Сертифицированный специалист", issuer: "Anti-AI Academy × Qwen"
+            };
+            saveState();
+          }
+          certBox.style.display = 'block';
+          const certIdEl = document.getElementById('certIdDisplay');
+          const certDateEl = document.getElementById('certDateDisplay');
+          const certCourseEl = document.getElementById('certCourseDisplay');
+          const certIssuerEl = document.getElementById('certIssuerDisplay');
+          if (certIdEl) certIdEl.textContent = certData.id;
+          if (certDateEl) certDateEl.textContent = certData.date;
+          if (certCourseEl) certCourseEl.textContent = certData.course;
+          if (certIssuerEl) certIssuerEl.textContent = certData.issuer;
+        } else { certBox.style.display = 'none'; }
+      }
+      
+      COURSE.forEach((lesson, idx) => {
+        const isCompleted = courseProgress[idx];
+        const isLocked = idx > 0 && !courseProgress[idx - 1] && !isCompleted;
+        const isActive = !isLocked && !isCompleted;
+        let statusText, statusClass;
+        if (isCompleted) { statusText = '✅ ПРОЙДЕН'; statusClass = 'completed'; }
+        else if (isActive) { statusText = '🔓 АКТИВЕН'; statusClass = 'active'; }
+        else { statusText = '🔒 ЗАКРЫТ'; statusClass = 'locked'; }
+        
+        let html = `<div class="lesson-card ${isCompleted ? 'completed' : isActive ? 'active' : 'locked'}">
+          <div class="lesson-header">
+            <span class="lesson-title">${this.t('day_label')} ${lesson.day}: ${lesson.title}</span>
+            <span class="lesson-status ${statusClass}">${statusText}</span>
+          </div>`;
+        if (!isLocked) {
+          html += `<div class="lesson-content">${lesson.content}</div>`;
+          if (lesson.case) html += `<div class="case-text">${lesson.case}</div>`;
+          html += `<div class="lesson-task"><b>🎯 ${this.t('task_label')}:</b> ${lesson.task}</div>
+            <textarea class="lesson-input" id="task-${idx}" placeholder="${this.t('answer_placeholder')}" ${isCompleted ? 'disabled' : ''}></textarea>
+            <div class="btn-group">
+              <button class="btn secondary" onclick="app.checkLesson(${idx})" ${isCompleted ? 'disabled' : ''}>✅ ${this.t('check_btn')}</button>
+              <button class="btn secondary" onclick="app.showHint(${idx})">💡 ${this.t('hint_btn')}</button>
+              <button class="btn secondary" onclick="app.showAnswer(${idx})">👁️ ${this.t('answer_btn')}</button>
+            </div>
+            <div id="hint-${idx}" style="display:none; margin-top:8px; padding:10px; background:rgba(0,212,255,0.1); border-radius:6px; font-size:0.8rem; color:var(--accent);"></div>
+            <div id="answer-${idx}" style="display:none; margin-top:8px; padding:10px; background:rgba(255,215,0,0.1); border-radius:6px; font-size:0.8rem; color:var(--gold);"></div>
+            <div class="lesson-feedback" id="feedback-${idx}"></div>`;
+        } else { html += `<p style="color:var(--muted); font-size:0.85rem;">🔒 ${this.t('locked_msg')}</p>`; }
+        html += `</div>`;
+        container.innerHTML += html;
+      });
+      if (courseProgress.slice(0, 9).every(c => c) && !courseProgress[9] && examScore !== 10) { this.renderExam(); }
+    },
+    
+    checkLesson: function(idx) {
+      const input = document.getElementById(`task-${idx}`)?.value.trim();
+      const feedback = document.getElementById(`feedback-${idx}`);
+      if (!input || !feedback) return;
+      if (input.length < 10) {
+        feedback.className = 'lesson-feedback error'; feedback.style.display = 'block';
+        feedback.innerHTML = `⚠️ <b>${this.t('too_short')}</b>`; return;
+      }
+      const isCorrect = COURSE[idx].check(input); feedback.style.display = 'block';
+      if (isCorrect) {
+        courseProgress[idx] = true; saveState(); this.renderCourse();
+        feedback.className = 'lesson-feedback success'; feedback.innerHTML = `${this.t('correct')}`;
+        speak(this.t('correct'), true);
+      } else {
+        feedback.className = 'lesson-feedback error'; feedback.innerHTML = `${this.t('incorrect')}`;
+        speak(this.t('incorrect'), true);
+      }
+    },
+    
+    showHint: function(idx) {
+      const h = document.getElementById(`hint-${idx}`);
+      if (!h) return; h.style.display = h.style.display === 'none' ? 'block' : 'none';
+      h.textContent = '💡 ' + COURSE[idx].hint;
+    },
+    showAnswer: function(idx) {
+      const a = document.getElementById(`answer-${idx}`);
+      if (!a) return; a.style.display = a.style.display === 'none' ? 'block' : 'none';
+      a.textContent = '📚 ' + this.t('answer_btn') + ': ' + COURSE[idx].hint;
+    },
+    
+    renderExam: function() {
+      if (courseProgress[9]) return;
+      const lesson = COURSE[9], container = document.getElementById('examContainer');
+      if (!container) return;
+      let html = `<div class="card" style="border-color:var(--gold); background:rgba(255,215,0,0.05); margin-top:16px;">
+        <h3>🏆 ${this.t('final_exam')}</h3><p style="margin:12px 0;">${this.t('exam_instr')}</p>`;
+      lesson.examQuestions.forEach((q, i) => {
+        html += `<div class="exam-question" id="eq${i}">
+          <p style="margin-bottom:8px;"><b>${this.t('question')} ${i + 1}:</b> ${q.q}</p>
+          <div class="exam-options">
+            <label><input type="radio" name="exam${i}" value="true"> ✅ ${this.t('true_opt')}</label>
+            <label><input type="radio" name="exam${i}" value="false"> ❌ ${this.t('false_opt')}</label>
+          </div>
+        </div>`;
+      });
+      html += `<button class="btn" onclick="app.submitExam()" style="width:100%; margin-top:16px; font-size:1.1rem;">📝 ${this.t('submit_exam')}</button>
+        <div id="examResult" style="margin-top:16px; display:none;"></div></div>`;
+      container.innerHTML = html;
+    },
+    
+    submitExam: function() {
+      const lesson = COURSE[9]; let correct = 0;
+      lesson.examQuestions.forEach((q, i) => {
+        const sel = document.querySelector(`input[name="exam${i}"]:checked`);
+        if (sel) {
+          const ok = (sel.value === 'true') === q.correct;
+          if (ok) correct++;
+          const eqEl = document.getElementById(`eq${i}`);
+          if (eqEl) { eqEl.classList.add('answered'); eqEl.style.borderLeft = `3px solid ${ok ? 'var(--success)' : 'var(--danger)'}`; }
+        }
+      });
+      examScore = correct; saveState();
+      const res = document.getElementById('examResult'); if (!res) return; res.style.display = 'block';
+      if (correct === 10) {
+        courseProgress[9] = true; saveState(); this.renderCourse();
+        res.innerHTML = `<div style="text-align:center;padding:24px;background:rgba(46,204,113,0.15);border-radius:12px;border:2px solid var(--success);">
+          <h3 style="color:var(--success);font-size:1.8rem;">🎉 ${this.t('exam_perfect')}</h3>
+          <p style="font-size:1.3rem;margin:16px 0;"><b>10 ${this.t('out_of')} 10</b></p>
+          <p style="font-size:1.1rem;color:var(--gold);">🏆 ${this.t('cert_unlocked')}</p></div>`;
+        speak(this.t('exam_perfect'), true);
+      } else {
+        res.innerHTML = `<div style="text-align:center;padding:24px;background:rgba(231,76,60,0.15);border-radius:12px;border:2px solid var(--danger);">
+          <h3 style="color:var(--danger);font-size:1.5rem;">😔 ${this.t('exam_failed', {score: correct})}</h3>
+          <button class="btn secondary" onclick="app.renderExam()" style="margin-top:12px;">🔄 ${this.t('retry_btn')}</button></div>`;
+        speak(this.t('exam_failed', {score: correct}), true);
+      }
+    },
+    
+    renderPractice: function() {
+      const box = document.getElementById('practiceContainer'); if (!box) return; box.innerHTML = '';
+      PRACTICE_CASES.forEach((c, i) => {
+        box.innerHTML += `<div class="card">
+          <h3>${c.title}</h3><div class="case-text">${c.text}</div>
+          <p style="font-size:0.8rem;color:var(--muted);margin:8px 0;">${c.task}</p>
+          <input type="text" id="prac-${i}" placeholder="${this.t('answer_placeholder')}">
+          <button class="btn secondary" onclick="app.checkPractice(${i})" style="margin-top:8px;font-size:0.8rem;">🔍 ${this.t('check_btn')}</button>
+          <div id="prac-fb-${i}" style="margin-top:8px;font-size:0.8rem;display:none;"></div>
+        </div>`;
+      });
+    },
+    
+    checkPractice: function(i) {
+      const val = document.getElementById(`prac-${i}`)?.value.trim(), fb = document.getElementById(`prac-fb-${i}`);
+      if (!val || !fb) return; fb.style.display = 'block';
+      if (val.length < 5) { fb.innerHTML = `⚠️ ${this.t('too_short_practice')}`; fb.style.color = 'var(--warning)'; return; }
+      const ok = PRACTICE_CASES[i].check(val);
+      fb.innerHTML = ok ? `✅ ${this.t('practice_correct')}` : `❌ ${this.t('practice_incorrect')}`;
+      fb.style.color = ok ? 'var(--success)' : 'var(--danger)';
+      if (ok) speak(this.t('practice_correct')?.split('!')[0] || 'Correct!', true);
+    },
+    
+    filterLibrary: function() {
+      const q = document.getElementById('libSearch')?.value.toLowerCase() || '';
+      document.querySelectorAll('.lib-section').forEach(s => {
+        const t = s.textContent.toLowerCase() + ' ' + (s.getAttribute('data-tags') || '');
+        s.style.display = (t.includes(q) || !q) ? 'block' : 'none';
+      });
+    },
+    
+    resetProgress: function() {
+      if (confirm(this.t('reset_confirm'))) {
+        localStorage.removeItem('ai_fact_progress'); localStorage.removeItem('ai_fact_exam');
+        localStorage.removeItem('ai_fact_certificate');
+        courseProgress = Array(10).fill(false); examScore = 0; certData = null; saveState();
+        this.renderCourse(); speak(this.t('progress_reset'), true); alert(this.t('reset_done'));
+      }
+    },
+    
+    exportCertificate: function() {
+      if (!certData) { alert(this.t('cert_locked')); return; }
+      const blob = new Blob([JSON.stringify(certData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `certificate-${certData.id}.json`; a.click(); speak(this.t('cert_downloaded'), true);
+    },
+    
+    importCertificate: function(e) {
+      const f = e.target.files?.[0]; if (!f) return;
+      const r = new FileReader(); r.onload = (ev) => {
+        try {
+          const d = JSON.parse(ev.target.result);
+          if (d.id && d.sig && verifyCertSignature(d.id, d.sig)) {
+            certData = d; saveState(); this.renderCourse();
+            alert(this.t('cert_imported')); speak(this.t('cert_imported'), true);
+          } else { alert(this.t('cert_bad_sig')); }
+        } catch (err) { alert(this.t('cert_file_error')); }
+      }; r.readAsText(f); e.target.value = '';
+    },
+    
+    exportPortfolio: function() {
+      if (!certData) { alert(this.t('cert_locked')); return; }
+      const text = `📁 ПОРТФОЛИО: QWEN FACT-CHECKER\n👤 ${this.t('cert_label')}: ${certData.id}\n📚 ${this.t('cert_course')}${certData.course}\n📅 ${this.t('date_label')}: ${certData.date}\n🏢 ${this.t('cert_issuer')} ${certData.issuer}\n\n📝 ${this.t('cases_label')}:\n1. ${this.t('case1')}\n2. ${this.t('case2')}\n3. ${this.t('case3')}\n4. ${this.t('case4')}\n5. ${this.t('case5')}\n\n✅ ${this.t('skills_label')}: ${this.t('skills_list')}.\n🔗 Anti-AI Academy × Qwen`;
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `portfolio-${certData.id}.txt`; a.click(); speak(this.t('portfolio_downloaded'), true);
+    },
+    
+    printCertificate: function() {
+      if (!certData) return;
+      const w = window.open('', '_blank'); if (!w) { alert('❌ Popup blocked.'); return; }
+      w.document.write(`<!DOCTYPE html><html><head><title>${this.t('cert_title')} ${certData.id}</title><style>body{margin:0;padding:40px;font-family:'Segoe UI',sans-serif;background:#0a0c14;min-height:100vh;display:flex;justify-content:center;align-items:center;color:#e6eaf0;}.cert{background:linear-gradient(135deg,rgba(255,215,0,0.1),rgba(0,212,255,0.1));border:4px solid #ffd700;border-radius:20px;padding:50px;text-align:center;max-width:800px;}h1{color:#ffd700;font-size:2.5rem;margin-bottom:20px;}.seal{width:100px;height:100px;border:4px solid #ffd700;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:30px auto;font-size:3rem;background:rgba(255,215,0,0.1);}.badge{display:inline-block;padding:10px 24px;background:linear-gradient(135deg,#ffd700,#ffed4e);color:#000;border-radius:30px;font-weight:bold;margin:20px 0;}.id{font-family:monospace;background:rgba(0,0,0,0.4);padding:8px 16px;border-radius:8px;color:#ffd700;display:inline-block;margin:12px 0;}.course{color:#00d4ff;font-weight:bold;margin:10px 0;}.issuer{font-size:0.9rem;color:#8a92a6;margin-top:20px;}p{font-size:1.1rem;margin:10px 0;}@media print{body{background:white;color:black;}.cert{border-color:gold;background:white;}}</style></head><body><div class="cert"><div class="seal">🤖</div><h1>🎓 ${this.t('cert_heading')}</h1><p class="course">📚 ${this.t('cert_course')}${certData.course}</p><p style="font-size:1.3rem;margin:16px 0;"><b>Anti-AI Academy × Qwen</b></p><p>${this.t('cert_confirms')}</p><p style="font-size:1.2rem;color:#ffd700;margin:8px 0;font-weight:bold;">${this.t('cert_who')}</p><p>${this.t('cert_completed')}</p><div class="id">${certData.id}</div><p style="font-size:0.9rem;margin-top:12px;">${this.t('cert_issuer')} ${certData.issuer}</p><p style="font-size:0.9rem;">${this.t('cert_date_label')} ${certData.date}</p><div class="badge">${this.t('cert_badge')}</div></div><script>window.onload=function(){window.print();}<\/script></body></html>`);
+      w.document.close(); speak(this.t('print_cert'), true);
+    },
+    
+    validateCertificate: function() {
+      const inp = document.getElementById('validateInput')?.value.trim().toUpperCase(), res = document.getElementById('validateResult');
+      if (!res) return; res.style.display = 'block';
+      if (!inp || !/^QWEN-[A-Z0-9]{6}$/.test(inp)) { res.textContent = `❌ ${this.t('invalid_format')}`; res.style.color = 'var(--danger)'; return; }
+      if (certData && inp === certData.id) {
+        res.innerHTML = `<span style="color:var(--success);">✅ ${this.t('cert_valid')}<br><small>${this.t('issued_label')}: ${certData.date}</small></span>`;
+        res.style.color = 'var(--success)'; speak(this.t('cert_valid'), true);
+      } else { res.textContent = `❌ ${this.t('cert_invalid')}`; res.style.color = 'var(--danger)'; speak(this.t('cert_invalid'), true); }
+    },
+    
+    copyPhone: function() {
+      const phone = '89202275676';
+      navigator.clipboard?.writeText(phone).then(() => speak(this.t('copied'), true)).catch(() => {
+        const ta = document.createElement('textarea'); ta.value = phone; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); document.body.removeChild(ta); speak(this.t('copied'), true);
+      });
+    },
+    
+    openModal: function(id) { document.getElementById(id)?.classList.add('open'); },
+    closeModal: function(id) { document.getElementById(id)?.classList.remove('open'); },
+    
+    toggleVoice: function() {
+      if (!isSpeechSupported()) {
+        alert(currentLang === 'ru' ? '⚠️ Озвучка не поддерживается в этом браузере.\nПопробуйте Chrome/Edge на компьютере.' : '⚠️ Speech not supported. Try Chrome/Edge.');
+        return;
+      }
+      voiceEnabled = !voiceEnabled; saveState(); updateVoiceBtn();
+      speak(voiceEnabled ? this.t('voice_on') : this.t('voice_off'), true);
+    }
+  };
+
+  window.app = app; window.loadVoices = loadVoices; window.speak = speak;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.protocol === 'file:') console.info('💡 Tip: Run local server: python -m http.server 8000');
+    app.applyLang(); updateVoiceBtn(); app.renderCourse(); app.renderPractice();
+    document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); app.switchTab(b.dataset.tab); }));
+    const voiceBtn = document.getElementById('voiceBtn');
+    if (voiceBtn) voiceBtn.addEventListener('click', (e) => { e.stopPropagation(); app.toggleVoice(); });
+    
+    let speechUnlocked = false;
+    function unlockSpeech() {
+      if (speechUnlocked || !isSpeechSupported()) return;
+      try { const d = new SpeechSynthesisUtterance(''); d.volume = 0; if (synth) { synth.speak(d); synth.cancel(); } speechUnlocked = true; } catch(e) { console.warn('🔊 Unlock failed:', e); }
+    }
+    ['click', 'touchstart'].forEach(evt => document.addEventListener(evt, unlockSpeech, { once: true, passive: true }));
+    setTimeout(() => { if (!voicesLoaded && isSpeechSupported()) { loadVoices(); console.log('🔊 Retrying voice load, voices:', voices.length); } }, 2000);
+  });
+})();
+</script>
+</body>
+</html>
